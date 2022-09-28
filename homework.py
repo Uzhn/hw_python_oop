@@ -1,3 +1,8 @@
+from dataclasses import dataclass, asdict
+from typing import ClassVar, Dict, Type
+
+
+@dataclass
 class InfoMessage:
     """Информационное сообщение о тренировке."""
     training_type: str
@@ -5,26 +10,14 @@ class InfoMessage:
     distance: float
     speed: float
     calories: float
-
-    def __init__(self,
-                 training_type: str,
-                 duration: float,
-                 distance: float,
-                 speed: float,
-                 calories: float,
-                 ) -> None:
-        self.training_type = training_type
-        self.duration = duration
-        self.distance = distance
-        self.speed = speed
-        self.calories = calories
+    message: ClassVar[str] = ('Тип тренировки: {training_type}; '
+                              'Длительность: {duration:.3f} ч.; '
+                              'Дистанция: {distance:.3f} км; '
+                              'Ср. скорость: {speed:.3f} км/ч; '
+                              'Потрачено ккал: {calories:.3f}.')
 
     def get_message(self) -> str:
-        return (f'Тип тренировки: {self.training_type}; '
-                f'Длительность: {self.duration:.3f} ч.; '
-                f'Дистанция: {self.distance:.3f} км; '
-                f'Ср. скорость: {self.speed:.3f} км/ч; '
-                f'Потрачено ккал: {self.calories:.3f}.')
+        return self.message.format(**asdict(self))
 
 
 class Training:
@@ -64,19 +57,23 @@ class Training:
 
 class Running(Training):
     """Тренировка: бег."""
+    MIN_IN_HOUR = 60
+    COEFF_RUN_1 = 18
+    COEFF_RUN_2 = 20
 
     def get_spent_calories(self) -> float:
-        coeff_run_1 = 18
-        coeff_run_2 = 20
-        duration_in_min = self.duration * 60
-        spent_calories_run = (coeff_run_1 * self.get_mean_speed()
-                              - coeff_run_2
-                              ) * self.weight / self.M_IN_KM * duration_in_min
+        spent_calories_run = (self.COEFF_RUN_1 * self.get_mean_speed()
+                              - self.COEFF_RUN_2
+                              ) * self.weight / self.M_IN_KM \
+                                * self.duration * self.MIN_IN_HOUR
         return spent_calories_run
 
 
 class SportsWalking(Training):
     """Тренировка: спортивная ходьба."""
+    MIN_IN_HOUR = 60
+    COEFF_WALK_1 = 0.035
+    COEFF_WALK_2 = 0.029
 
     def __init__(self,
                  action: int,
@@ -90,20 +87,18 @@ class SportsWalking(Training):
         self.height = height
 
     def get_spent_calories(self) -> float:
-        coeff_walk_1 = 0.035
-        coeff_walk_2 = 0.029
-        duration_in_min = self.duration * 60
-        spent_calories_walk = (coeff_walk_1 * self.weight + (
+        spent_calories_walk = (self.COEFF_WALK_1 * self.weight + (
             self.get_mean_speed()**2 // self.height)
-            * coeff_walk_2 * self.weight) * duration_in_min
+            * self.COEFF_WALK_2 * self.weight) * self.duration \
+            * self.MIN_IN_HOUR
         return spent_calories_walk
 
 
 class Swimming(Training):
     """Тренировка: плавание."""
     LEN_STEP = 1.38
-    coeff_swim_1 = 1.1
-    coeff_swim_2 = 2
+    COEFF_SWIM_1 = 1.1
+    COEFF_SWIM_2 = 2
 
     def __init__(self,
                  action: int,
@@ -124,19 +119,22 @@ class Swimming(Training):
         return mean_speed
 
     def get_spent_calories(self) -> float:
-        spent_calories_swim = (self.get_mean_speed() + self.coeff_swim_1)\
-            * self.coeff_swim_2 * self.weight
+        spent_calories_swim = (self.get_mean_speed() + self.COEFF_SWIM_1)\
+            * self.COEFF_SWIM_2 * self.weight
         return spent_calories_swim
 
 
 def read_package(workout_type: str, data: list) -> Training:
     """Прочитать данные полученные от датчиков."""
-    dict_training = {
+    dict_training: Dict[str, Type[Training]] = {
         'RUN': Running,
         'WLK': SportsWalking,
         'SWM': Swimming
     }
-    return dict_training[workout_type](*data)
+    if workout_type in dict_training:
+        return dict_training[workout_type](*data)
+    else:
+        raise KeyError
 
 
 def main(training: Training) -> None:
